@@ -11,10 +11,11 @@ def tmp_settings(tmp_path) -> Settings:
     import yaml
     cfg = {
         "anthropic_api_key": "sk-test",
-        "models": {"master_agent": "claude-opus-4-5",
+        "models": {"master_agent": "claude-opus-4-7",
                     "sub_agent": "claude-sonnet-4-6",
-                    "recorder": "claude-opus-4-5",
+                    "recorder": "claude-opus-4-7",
                     "reviewer": "claude-sonnet-4-6"},
+        "retrieval": {"embedding_backend": "deterministic"},
         "storage": {"data_dir": str(tmp_path / "data"),
                     "output_dir": str(tmp_path / "outputs"),
                     "chroma_dir": str(tmp_path / "data" / "chroma"),

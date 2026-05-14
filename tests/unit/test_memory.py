@@ -7,7 +7,7 @@ from novel_sim.models import CharacterTurnRecord
 
 
 def test_subjective_write_retrieve(tmp_path):
-    store = ChromaSubjectiveStore(tmp_path / "chroma")
+    store = ChromaSubjectiveStore(tmp_path / "chroma", backend="deterministic")
     store.add("alice", 1, "在客栈初次见到黑衣人")
     store.add("alice", 2, "黑衣人说了一句奇怪的话")
     results = store.retrieve("alice", "黑衣人", n=5)
@@ -24,7 +24,7 @@ def test_verbatim_keyword(tmp_path):
 
 
 def test_retriever_unified(tmp_path):
-    sub = ChromaSubjectiveStore(tmp_path / "chroma")
+    sub = ChromaSubjectiveStore(tmp_path / "chroma", backend="deterministic")
     ver = JsonlVerbatimStore(tmp_path / "verbatim")
     r = Retriever(sub, ver)
     sub.add("alice", 1, "见到黑衣人")

@@ -18,21 +18,26 @@ python -m pip install -e ".[dev]"
 
 ## 配置
 
-1. 复制环境变量模板并填写：
+1. 复制环境变量模板并填写你的 API key：
 
 ```bash
 cp .env.example .env
 ```
 
-2. 在 `.env` 中设置你的 `ANTHROPIC_API_KEY`（不要提交真实 key）。
+编辑 `.env` 填入 `ANTHROPIC_API_KEY`（或 `OPENAI_API_KEY`）。
 
-3. 复制并编辑配置文件：
+2. 复制配置文件并按需调整：
 
 ```bash
 cp config.example.yaml config.yaml
 ```
 
-默认 `provider.type` 为 `anthropic`，可按需改为 OpenAI-compatible。
+默认 `provider.type=anthropic`，走官方 endpoint。如果你需要：
+
+- **使用代理或自建 endpoint**：在 `config.yaml` 的 `provider.base_url` 填入完整 URL
+- **切换到 OpenAI 兼容接口**：把 `provider.type` 改为 `openai`，填好 `base_url` 和 `api_key`
+
+3. （可选）替换模型字符串、调整 `retrieval` 和 `review_loop` 的参数。
 
 ## 运行模拟
 

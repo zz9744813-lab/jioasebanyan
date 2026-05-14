@@ -21,19 +21,12 @@ class SubAgent:
     async def run_turn(self, obs: POVObservation) -> SubAgentOutput:
         retrieved = self.retriever.auto_retrieve(
             self.char_id, obs.text, self.settings.retrieval.auto_retrieve_n)
-        system = (
-            f"{self.persona}\n\n【你作为该角色的行动规则】\n"
-            "1. 你只知道你的 POV 范围内的事。\n"
-            "2. 你的目标和动机来自你的人设。\n"
-            "3. 工具：recall_subjective / recall_verbatim。\n"
-            "4. 输出严格 JSON：{thinking, action, memory_entry}。")
-        user = (
-            f"当前是第 {obs.turn} 回合。\n\n"
-            f"【你刚才感知到的】\n{obs.text}\n\n"
-            f"【你脑海中相关的几条记忆】（可能不准确）\n{self._fmt_memories(retrieved)}\n\n"
-            "请输出严格 JSON：\n"
-            '{"thinking": "...", "action": "...", "memory_entry": "..."}\n\n'
-            "只输出 JSON，不要其他文字。")
+        system = self.prompts.render("sub_agent_system", persona=self.persona)
+        user = self.prompts.render(
+            "sub_agent_user",
+            turn=obs.turn,
+            observation=obs.text,
+            memories=self._fmt_memories(retrieved))
         tools = self._tool_specs()
         try:
             response_text = await self.llm.call_with_tools(

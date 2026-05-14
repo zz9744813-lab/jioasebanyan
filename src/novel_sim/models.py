@@ -52,7 +52,7 @@ class ObjectiveEvent(BaseModel):
 
 
 class Adjudication(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
     adjudications: dict[str, str] = Field(default_factory=dict)
     events: list[ObjectiveEvent] = Field(default_factory=list)
     world_state_patch: dict = Field(default_factory=dict)

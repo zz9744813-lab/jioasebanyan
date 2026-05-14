@@ -24,6 +24,8 @@ class LLMConfig(BaseModel):
 class RetrievalConfig(BaseModel):
     auto_retrieve_n: int = 5
     verbatim_max_results: int = 5
+    embedding_backend: str = "sentence_transformers"
+    embedding_model: str = "paraphrase-multilingual-MiniLM-L12-v2"
 
 
 class ReviewLoopConfig(BaseModel):
@@ -45,7 +47,7 @@ class ConcurrencyConfig(BaseModel):
 
 class ProviderConfig(BaseModel):
     type: str = "anthropic"  # anthropic | openai
-    base_url: str = "https://sub.whitedream.top/v1"
+    base_url: str = ""
     api_key: str = ""
 
 

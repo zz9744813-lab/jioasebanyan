@@ -1,0 +1,12 @@
+当前是第 {{ turn }} 回合。
+
+【你刚才感知到的】
+{{ observation }}
+
+【你脑海中相关的几条记忆】（可能不准确）
+{{ memories }}
+
+请输出严格 JSON：
+{% raw %}{"thinking": "...", "action": "...", "memory_entry": "..."}{% endraw %}
+
+只输出 JSON，不要其他文字。

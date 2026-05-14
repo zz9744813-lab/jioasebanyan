@@ -20,8 +20,14 @@ _RETRYABLE = (RateLimitError, APITimeoutError, APIError)
 
 
 class AnthropicProvider(LLMProvider):
-    def __init__(self, trace_writer: TraceWriter, max_retries: int = 3):
-        self.client = AsyncAnthropic()
+    def __init__(self, trace_writer: TraceWriter, max_retries: int = 3,
+                 base_url: str = "", api_key: str = ""):
+        kwargs = {}
+        if base_url:
+            kwargs["base_url"] = base_url
+        if api_key:
+            kwargs["api_key"] = api_key
+        self.client = AsyncAnthropic(**kwargs)
         self.trace = trace_writer
         self.max_retries = max_retries
 
