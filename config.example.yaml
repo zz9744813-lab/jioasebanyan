@@ -1,0 +1,37 @@
+provider:
+  type: "anthropic"
+  base_url: "https://sub.whitedream.top/v1"
+  api_key: ""
+
+models:
+  master_agent: "claude-opus-4-7"
+  sub_agent: "claude-sonnet-4-6"
+  recorder: "claude-opus-4-7"
+  reviewer: "claude-sonnet-4-6"
+
+llm:
+  max_tokens: 4096
+  temperature: 1.0
+  reviewer_temperature: 0.3
+  request_timeout_s: 120
+  max_retries: 3
+
+retrieval:
+  auto_retrieve_n: 5
+  verbatim_max_results: 5
+
+review_loop:
+  similarity_threshold: 0.85
+  window: 3
+  max_no_progress: 3
+
+storage:
+  data_dir: "./.data"
+  output_dir: "./outputs"
+  chroma_dir: "./.data/chroma"
+  trace_dir: "./.data/traces"
+
+concurrency:
+  sub_agent_parallel: true
+
+prompts_dir: "./prompts"

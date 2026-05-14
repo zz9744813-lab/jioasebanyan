@@ -18,7 +18,7 @@ def test_verbatim_keyword(tmp_path):
     store = JsonlVerbatimStore(tmp_path / "verbatim")
     cr = CharacterTurnRecord(char_id="alice", observation="雨夜", thinking="疑心",
                              action="推门", memory_entry="记录")
-    store.append("alice", cr, "雨夜入店")
+    store.append("alice", 1, cr, "雨夜入店")
     results = store.search_keyword("alice", "雨夜")
     assert len(results) == 1
 
@@ -30,7 +30,7 @@ def test_retriever_unified(tmp_path):
     sub.add("alice", 1, "见到黑衣人")
     cr = CharacterTurnRecord(char_id="alice", observation="...", thinking="...",
                              action="...", memory_entry="见到黑衣人")
-    ver.append("alice", cr, "...")
+    ver.append("alice", 1, cr, "...")
     auto = r.auto_retrieve("alice", "陌生人", n=5)
     assert len(auto) >= 1
     verbatim = r.recall_verbatim("alice", "黑衣人")

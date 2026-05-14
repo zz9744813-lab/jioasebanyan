@@ -85,7 +85,7 @@ class Orchestrator:
             ct = CharacterTurnRecord(char_id=cid, observation=obs_map[cid].text,
                                      thinking=out.thinking, action=out.action,
                                      memory_entry=out.memory_entry)
-            self.verbatim.append(cid, ct, obs_map[cid].text)
+            self.verbatim.append(cid, turn, ct, obs_map[cid].text)
         actions_for_judge = {cid: {"thinking": out.thinking, "action": out.action}
                              for cid, out in output_map.items()}
         adj = await self.master.adjudicate(turn, actions_for_judge)

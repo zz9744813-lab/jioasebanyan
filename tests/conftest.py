@@ -1,4 +1,6 @@
 """全局测试 fixtures。"""
+import asyncio
+import inspect
 import pytest
 from pathlib import Path
 from novel_sim.settings import Settings
@@ -42,3 +44,13 @@ def mock_llm():
                               '"scene_ended": false, "chronicle_entry": null}'],
         "sub.": ['{"thinking": "思考", "action": "行动", "memory_entry": "记忆"}'],
     })
+
+
+def pytest_pyfunc_call(pyfuncitem):
+    """在缺少 pytest-asyncio 插件时兜底执行 async 测试。"""
+    if inspect.iscoroutinefunction(pyfuncitem.obj):
+        kwargs = {name: pyfuncitem.funcargs[name]
+                  for name in pyfuncitem._fixtureinfo.argnames}
+        asyncio.run(pyfuncitem.obj(**kwargs))
+        return True
+    return None
