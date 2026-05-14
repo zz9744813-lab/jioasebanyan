@@ -5,7 +5,9 @@ description = "Multi-agent novel simulation with strict POV isolation"
 requires-python = ">=3.11"
 dependencies = [
     "anthropic>=0.50.0",
+    "openai>=1.0.0",
     "chromadb>=0.4.22",
+    "sentence-transformers>=2.5.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
     "structlog>=24.1.0",

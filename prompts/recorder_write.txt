@@ -1,16 +1,16 @@
-你是"记录者"，正在为这本小说写【{chapter_title}】。
+你是"记录者"，正在为这本小说写【{{ chapter_title }}】。
 
 【小说整体规划摘要】
-- 主角：{protagonist_name}（{protagonist_id}）
-- 本章在整书中的位置：第 {chapter_number} 回，共 {total_chapters} 回
-- 本章应埋伏笔：{plant_list}
-- 本章应回收伏笔：{recover_list}
+- 主角：{{ protagonist_name }}（{{ protagonist_id }}）
+- 本章在整书中的位置：第 {{ chapter_number }} 回，共 {{ total_chapters }} 回
+- 本章应埋伏笔：{{ plant_list }}
+- 本章应回收伏笔：{{ recover_list }}
 
 【本章原始素材】（包含所有相关角色的 POV 观察、内心独白、行动；以及客观事件流；按时间顺序）
-{materials}
+{{ materials }}
 
 【已通过的前文章节摘要】
-{prev_summaries}
+{{ prev_summaries }}
 
 【写作要求 - 严格遵守】
 

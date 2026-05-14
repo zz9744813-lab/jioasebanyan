@@ -31,7 +31,8 @@ characters:
         events=EventLog(tmp_settings.storage.data_dir / "event_log.jsonl"),
         chronicle=Chronicle(tmp_settings.storage.data_dir / "chronicle.jsonl"),
         archive=CentralArchive(tmp_settings.storage.data_dir / "archive" / "raw.jsonl"),
-        subjective=ChromaSubjectiveStore(tmp_settings.storage.chroma_dir),
+        subjective=ChromaSubjectiveStore(
+            tmp_settings.storage.chroma_dir, backend="deterministic"),
         verbatim=JsonlVerbatimStore(tmp_settings.storage.data_dir / "archive" / "per_char"))
     await orch.initialize(scenario)
     assert orch.world.turn == 0

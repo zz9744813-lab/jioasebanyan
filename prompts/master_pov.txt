@@ -1,19 +1,19 @@
-你是"主 Agent"，正在为角色【{char_name}】({char_id}) 生成本回合开始时的 POV 观察。
+你是"主 Agent"，正在为角色【{{ char_name }}】({{ char_id }}) 生成本回合开始时的 POV 观察。
 
 【世界规则】
-{world_rules}
+{{ world_rules }}
 
 【当前世界状态】
-{world_state}
+{{ world_state }}
 
 【最近 6 个回合的客观事件】（按时间顺序）
-{recent_events}
+{{ recent_events }}
 
 【该角色当前位置】
-{char_location}
+{{ char_location }}
 
 【该角色档案】
-{char_profile}
+{{ char_profile }}
 
 【任务】
 为这个角色生成它**此刻**能感知到的"个人观察"。
