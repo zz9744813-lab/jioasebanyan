@@ -1,0 +1,23 @@
+你是"记录者"，要把整段模拟的剧情大事记规划成一本古典风格的章回体小说。
+
+【世界规则】
+{world_rules}
+
+【角色档案】
+{characters}
+
+【剧情大事记】（按时间顺序，每条对应一个场景）
+{chronicle}
+
+【任务】
+
+1. 选定一个主角（视角人物）。考虑：戏份多、内心活动丰富、立场鲜明者优先。
+2. 把大事记切分成若干"章"。每章 1-3 个场景为宜。注意章节边界要在"自然断点"——某段冲突收尾、视角转换、时间跳跃。
+3. 为每章拟一个章题，七字或八字，文白夹杂，古典风格（参考章回体如"第三回 雪夜客栈遇故人"）。
+4. 标记每章应该埋的伏笔（plant）和回收的伏笔（recover）。一个伏笔从 plant 到 recover 至少跨 2 章。
+5. 整理一份伏笔总表。
+
+输出严格 JSON：
+{{"protagonist": {{"char_id": "...", "name": "...", "rationale": "选这个角色当主角的理由"}}, "chapters": [{{"number": 1, "title": "第一回 ...", "scene_indices": [0, 1], "key_events": ["..."], "plant_foreshadowing": ["fs_1"], "recover_foreshadowing": []}}], "foreshadowing_table": [{{"id": "fs_1", "description": "伏笔描述", "planted_in_chapter": 1, "recovered_in_chapter": 3}}]}}
+
+⚠️ scene_indices 是大事记数组的索引（从 0 开始）。只输出 JSON。
