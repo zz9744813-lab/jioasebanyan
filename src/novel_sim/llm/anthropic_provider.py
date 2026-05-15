@@ -12,6 +12,7 @@ from tenacity import (retry, stop_after_attempt, wait_exponential,
 
 from ..models import LLMCallTrace
 from ..logging_setup import get_logger
+from ..events import emit
 from .protocol import LLMProvider, LLMResponseError
 from .tracing import TraceWriter
 
@@ -20,22 +21,34 @@ _RETRYABLE = (RateLimitError, APITimeoutError, APIError)
 
 
 class AnthropicProvider(LLMProvider):
-    def __init__(self, trace_writer: TraceWriter, max_retries: int = 3):
-        self.client = AsyncAnthropic()
+    def __init__(self, trace_writer: TraceWriter, max_retries: int = 3,
+                 base_url: str = "", api_key: str = ""):
+        kwargs = {}
+        if base_url:
+            kwargs["base_url"] = base_url
+        if api_key:
+            kwargs["api_key"] = api_key
+        self.client = AsyncAnthropic(**kwargs)
         self.trace = trace_writer
         self.max_retries = max_retries
 
     async def call(self, system, user, *, model, max_tokens=4096,
                    temperature=1.0, purpose="") -> str:
-        return await self._call_text(system, user, model=model,
-                                      max_tokens=max_tokens,
-                                      temperature=temperature, purpose=purpose)
+        start = time.time()
+        text, usage = await self._call_text(system, user, model=model,
+                                            max_tokens=max_tokens,
+                                            temperature=temperature, purpose=purpose)
+        emit("llm.call", purpose=purpose, model=model,
+             duration_ms=int((time.time() - start) * 1000),
+             input_tokens=getattr(usage, "input_tokens", 0) if usage else 0,
+             output_tokens=getattr(usage, "output_tokens", 0) if usage else 0)
+        return text
 
     async def call_json(self, system, user, *, model, max_tokens=4096,
                         temperature=1.0, purpose="") -> dict[str, Any]:
-        text = await self._call_text(system, user, model=model,
-                                      max_tokens=max_tokens,
-                                      temperature=temperature, purpose=purpose)
+        text, _ = await self._call_text(system, user, model=model,
+                                        max_tokens=max_tokens,
+                                        temperature=temperature, purpose=purpose)
         try:
             return _extract_json(text)
         except ValueError as e:
@@ -53,7 +66,12 @@ class AnthropicProvider(LLMProvider):
             messages.append({"role": "assistant", "content": resp.content})
             if resp.stop_reason != "tool_use":
                 texts = [b.text for b in resp.content if hasattr(b, "text")]
-                return "\n".join(texts)
+                out = "\n".join(texts)
+                emit("llm.call", purpose=f"{purpose}#iter{iteration}", model=model,
+                     duration_ms=0,
+                     input_tokens=getattr(resp.usage, "input_tokens", 0),
+                     output_tokens=getattr(resp.usage, "output_tokens", 0))
+                return out
             tool_results = []
             for block in resp.content:
                 if getattr(block, "type", None) == "tool_use":
@@ -68,7 +86,7 @@ class AnthropicProvider(LLMProvider):
         raise LLMResponseError(f"Tool loop exceeded {max_iterations} iterations")
 
     async def _call_text(self, system, user, *, model, max_tokens,
-                         temperature, purpose) -> str:
+                         temperature, purpose) -> tuple[str, Any]:
         resp = await self._raw_call(
             system=system, messages=[{"role": "user", "content": user}],
             tools=None, model=model, max_tokens=max_tokens,
@@ -76,7 +94,7 @@ class AnthropicProvider(LLMProvider):
         texts = [b.text for b in resp.content if hasattr(b, "text")]
         if not texts:
             raise LLMResponseError("Empty response", raw_response=str(resp))
-        return "\n".join(texts)
+        return "\n".join(texts), getattr(resp, "usage", None)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30),
            retry=retry_if_exception_type(_RETRYABLE), reraise=True)

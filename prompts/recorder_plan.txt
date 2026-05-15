@@ -1,13 +1,13 @@
 你是"记录者"，要把整段模拟的剧情大事记规划成一本古典风格的章回体小说。
 
 【世界规则】
-{world_rules}
+{{ world_rules }}
 
 【角色档案】
-{characters}
+{{ characters }}
 
 【剧情大事记】（按时间顺序，每条对应一个场景）
-{chronicle}
+{{ chronicle }}
 
 【任务】
 
@@ -18,6 +18,8 @@
 5. 整理一份伏笔总表。
 
 输出严格 JSON：
-{{"protagonist": {{"char_id": "...", "name": "...", "rationale": "选这个角色当主角的理由"}}, "chapters": [{{"number": 1, "title": "第一回 ...", "scene_indices": [0, 1], "key_events": ["..."], "plant_foreshadowing": ["fs_1"], "recover_foreshadowing": []}}], "foreshadowing_table": [{{"id": "fs_1", "description": "伏笔描述", "planted_in_chapter": 1, "recovered_in_chapter": 3}}]}}
+{% raw %}
+{"protagonist": {"char_id": "...", "name": "...", "rationale": "选这个角色当主角的理由"}, "chapters": [{"number": 1, "title": "第一回 ...", "scene_indices": [0, 1], "key_events": ["..."], "plant_foreshadowing": ["fs_1"], "recover_foreshadowing": []}], "foreshadowing_table": [{"id": "fs_1", "description": "伏笔描述", "planted_in_chapter": 1, "recovered_in_chapter": 3}]}
+{% endraw %}
 
 ⚠️ scene_indices 是大事记数组的索引（从 0 开始）。只输出 JSON。

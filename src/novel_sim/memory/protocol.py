@@ -11,7 +11,7 @@ class SubjectiveStore(Protocol):
 
 @runtime_checkable
 class VerbatimStore(Protocol):
-    def append(self, char_id: str, record: CharacterTurnRecord,
+    def append(self, char_id: str, turn: int, record: CharacterTurnRecord,
                observation: str) -> None: ...
     def search_keyword(self, char_id: str, keyword: str,
                        n: int = 5) -> list[dict]: ...

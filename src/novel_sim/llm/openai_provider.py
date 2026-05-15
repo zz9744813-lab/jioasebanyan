@@ -10,6 +10,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 
 from ..models import LLMCallTrace
 from ..logging_setup import get_logger
+from ..events import emit
 from .protocol import LLMProvider, LLMResponseError
 from .tracing import TraceWriter
 
@@ -25,15 +26,21 @@ class OpenAICompatibleProvider(LLMProvider):
 
     async def call(self, system, user, *, model, max_tokens=4096,
                    temperature=1.0, purpose="") -> str:
-        return await self._call_text(system, user, model=model,
-                                     max_tokens=max_tokens,
-                                     temperature=temperature, purpose=purpose)
+        start = time.time()
+        text, usage = await self._call_text(system, user, model=model,
+                                            max_tokens=max_tokens,
+                                            temperature=temperature, purpose=purpose)
+        emit("llm.call", purpose=purpose, model=model,
+             duration_ms=int((time.time() - start) * 1000),
+             input_tokens=getattr(usage, "prompt_tokens", 0) if usage else 0,
+             output_tokens=getattr(usage, "completion_tokens", 0) if usage else 0)
+        return text
 
     async def call_json(self, system, user, *, model, max_tokens=4096,
                         temperature=1.0, purpose="") -> dict[str, Any]:
-        text = await self._call_text(system, user, model=model,
-                                     max_tokens=max_tokens,
-                                     temperature=temperature, purpose=purpose)
+        text, _ = await self._call_text(system, user, model=model,
+                                        max_tokens=max_tokens,
+                                        temperature=temperature, purpose=purpose)
         try:
             return _extract_json(text)
         except ValueError as e:
@@ -54,7 +61,12 @@ class OpenAICompatibleProvider(LLMProvider):
                 purpose=f"{purpose}#iter{iteration}")
             msg = resp.choices[0].message
             if not getattr(msg, "tool_calls", None):
-                return msg.content or ""
+                out = msg.content or ""
+                emit("llm.call", purpose=f"{purpose}#iter{iteration}", model=model,
+                     duration_ms=0,
+                     input_tokens=getattr(resp.usage, "prompt_tokens", 0),
+                     output_tokens=getattr(resp.usage, "completion_tokens", 0))
+                return out
             messages.append({"role": "assistant", "content": msg.content or "",
                              "tool_calls": [{"id": tc.id, "type": "function",
                              "function": {"name": tc.function.name,
@@ -74,7 +86,7 @@ class OpenAICompatibleProvider(LLMProvider):
         raise LLMResponseError(f"Tool loop exceeded {max_iterations} iterations")
 
     async def _call_text(self, system, user, *, model, max_tokens,
-                         temperature, purpose) -> str:
+                         temperature, purpose) -> tuple[str, Any]:
         messages = [{"role": "system", "content": system},
                     {"role": "user", "content": user}]
         resp = await self._raw_call(
@@ -83,7 +95,7 @@ class OpenAICompatibleProvider(LLMProvider):
         content = resp.choices[0].message.content
         if not content:
             raise LLMResponseError("Empty response", raw_response=str(resp))
-        return content
+        return content, getattr(resp, "usage", None)
 
     @retry(stop=stop_after_attempt(3),
            wait=wait_exponential(multiplier=1, min=2, max=30), reraise=True)

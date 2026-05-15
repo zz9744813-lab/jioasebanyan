@@ -1,5 +1,6 @@
 """CLI 入口 - typer + rich。"""
 import asyncio
+import os
 from pathlib import Path
 import typer
 from rich.console import Console
@@ -34,13 +35,20 @@ def _build_orchestrator(settings: Settings) -> Orchestrator:
             api_key=settings.provider.api_key,
             max_retries=settings.llm.max_retries)
     else:
-        llm = AnthropicProvider(trace, max_retries=settings.llm.max_retries)
+        llm = AnthropicProvider(
+            trace,
+            max_retries=settings.llm.max_retries,
+            base_url=settings.provider.base_url,
+            api_key=settings.provider.api_key)
     prompts = PromptLoader(settings.prompts_dir)
     world = WorldStore(settings.storage.data_dir / "world_state.json")
     events = EventLog(settings.storage.data_dir / "event_log.jsonl")
     chronicle = Chronicle(settings.storage.data_dir / "chronicle.jsonl")
     archive = CentralArchive(settings.storage.data_dir / "archive" / "raw.jsonl")
-    subj = ChromaSubjectiveStore(settings.storage.chroma_dir)
+    subj = ChromaSubjectiveStore(
+        settings.storage.chroma_dir,
+        backend=settings.retrieval.embedding_backend,
+        model_name=settings.retrieval.embedding_model)
     verb = JsonlVerbatimStore(settings.storage.data_dir / "archive" / "per_char")
     return Orchestrator(
         settings=settings, llm=llm, prompts=prompts, world=world,
@@ -56,6 +64,19 @@ def run(scenario: Path = typer.Option(..., help="场景 YAML 路径"),
     """启动一次模拟会话。"""
     configure_logging(log_level)
     settings = Settings.load(str(config))
+    if settings.provider.type == "anthropic":
+        has_key = settings.provider.api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not has_key:
+            console.print("[red]缺少 ANTHROPIC_API_KEY。请在 .env 或 config.yaml 中配置。[/red]")
+            raise typer.Exit(1)
+    elif settings.provider.type == "openai":
+        has_key = settings.provider.api_key or os.environ.get("OPENAI_API_KEY")
+        if not has_key:
+            console.print("[red]缺少 OpenAI 兼容接口的 api_key。请在 config.yaml 的 provider.api_key 中填入。[/red]")
+            raise typer.Exit(1)
+        if not settings.provider.base_url:
+            console.print("[red]使用 openai type 时必须填 provider.base_url。[/red]")
+            raise typer.Exit(1)
     cm = CheckpointManager(settings)
     if reset:
         cm.reset()
@@ -135,6 +156,19 @@ def status(config: Path = typer.Option(Path("config.yaml"))):
         console.print("[dim]无会话[/dim]")
     else:
         console.print(info)
+
+
+@app.command()
+def web(host: str = "127.0.0.1", port: int = 8765,
+        config: Path = typer.Option(Path("config.yaml"))):
+    """启动 Web UI。访问 http://127.0.0.1:8765"""
+    import uvicorn
+    settings = Settings.load(str(config))
+    if settings.provider.type == "anthropic":
+        if not (settings.provider.api_key or os.environ.get("ANTHROPIC_API_KEY")):
+            console.print("[red]缺少 ANTHROPIC_API_KEY[/red]")
+            raise typer.Exit(1)
+    uvicorn.run("novel_sim.web.app:app", host=host, port=port, reload=False)
 
 
 if __name__ == "__main__":

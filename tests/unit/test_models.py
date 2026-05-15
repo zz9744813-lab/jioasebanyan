@@ -19,9 +19,16 @@ def test_review_result_failed_dimensions():
     assert set(r.failed_dimensions()) == {"literary", "coherence"}
 
 
-def test_adjudication_strict():
-    with pytest.raises(Exception):
-        Adjudication.model_validate({"wrong": "schema"})
+def test_adjudication_ignores_extra():
+    adj = Adjudication.model_validate({
+        "adjudications": {"a": "ok"},
+        "events": [],
+        "world_state_patch": {},
+        "scene_ended": False,
+        "chronicle_entry": None,
+        "unknown_extra_field": "this should be ignored",
+    })
+    assert adj.adjudications == {"a": "ok"}
 
 
 def test_all_passed():

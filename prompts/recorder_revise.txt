@@ -1,13 +1,13 @@
-你是"记录者"，正在根据审核反馈修订【{chapter_title}】。
+你是"记录者"，正在根据审核反馈修订【{{ chapter_title }}】。
 
 【上一稿正文】
-{previous_draft}
+{{ previous_draft }}
 
 【审核反馈】（逐条指出问题）
-{review_feedback}
+{{ review_feedback }}
 
 【本章原始素材 - 这是事实金标准，不可违背】
-{materials}
+{{ materials }}
 
 【修订要求】
 

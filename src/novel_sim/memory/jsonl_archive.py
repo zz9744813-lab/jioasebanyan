@@ -12,10 +12,10 @@ class JsonlVerbatimStore:
     def _path(self, char_id: str) -> Path:
         return self.data_dir / f"{char_id}.jsonl"
 
-    def append(self, char_id: str, record: CharacterTurnRecord,
+    def append(self, char_id: str, turn: int, record: CharacterTurnRecord,
                observation: str) -> None:
         payload = {
-            "turn": record.turn if hasattr(record, "turn") else 0,
+            "turn": turn,
             "observation": observation,
             "thinking": record.thinking,
             "action": record.action,

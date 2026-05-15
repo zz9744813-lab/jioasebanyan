@@ -1,4 +1,6 @@
 """全局测试 fixtures。"""
+import asyncio
+import inspect
 import pytest
 from pathlib import Path
 from novel_sim.settings import Settings
@@ -9,10 +11,11 @@ def tmp_settings(tmp_path) -> Settings:
     import yaml
     cfg = {
         "anthropic_api_key": "sk-test",
-        "models": {"master_agent": "claude-opus-4-5",
+        "models": {"master_agent": "claude-opus-4-7",
                     "sub_agent": "claude-sonnet-4-6",
-                    "recorder": "claude-opus-4-5",
+                    "recorder": "claude-opus-4-7",
                     "reviewer": "claude-sonnet-4-6"},
+        "retrieval": {"embedding_backend": "deterministic"},
         "storage": {"data_dir": str(tmp_path / "data"),
                     "output_dir": str(tmp_path / "outputs"),
                     "chroma_dir": str(tmp_path / "data" / "chroma"),
@@ -42,3 +45,13 @@ def mock_llm():
                               '"scene_ended": false, "chronicle_entry": null}'],
         "sub.": ['{"thinking": "思考", "action": "行动", "memory_entry": "记忆"}'],
     })
+
+
+def pytest_pyfunc_call(pyfuncitem):
+    """在缺少 pytest-asyncio 插件时兜底执行 async 测试。"""
+    if inspect.iscoroutinefunction(pyfuncitem.obj):
+        kwargs = {name: pyfuncitem.funcargs[name]
+                  for name in pyfuncitem._fixtureinfo.argnames}
+        asyncio.run(pyfuncitem.obj(**kwargs))
+        return True
+    return None

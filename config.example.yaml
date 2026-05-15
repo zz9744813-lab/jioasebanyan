@@ -1,0 +1,41 @@
+# 服务商配置。用户必须自行配置 base_url（如使用代理）或留空走官方
+# 如使用 OpenAI 兼容接口：type 改成 openai，填入 base_url 和 api_key
+provider:
+  type: "anthropic"        # anthropic | openai
+  base_url: ""             # 留空走 Anthropic 官方；用代理时填入完整 URL
+  api_key: ""              # 留空时从环境变量 ANTHROPIC_API_KEY 读取
+
+models:
+  master_agent: "claude-opus-4-7"
+  sub_agent: "claude-sonnet-4-6"
+  recorder: "claude-opus-4-7"
+  reviewer: "claude-sonnet-4-6"
+
+llm:
+  max_tokens: 4096
+  temperature: 1.0
+  reviewer_temperature: 0.3
+  request_timeout_s: 120
+  max_retries: 3
+
+retrieval:
+  auto_retrieve_n: 5
+  verbatim_max_results: 5
+  embedding_backend: "sentence_transformers"
+  embedding_model: "paraphrase-multilingual-MiniLM-L12-v2"
+
+review_loop:
+  similarity_threshold: 0.85
+  window: 3
+  max_no_progress: 3
+
+storage:
+  data_dir: "./.data"
+  output_dir: "./outputs"
+  chroma_dir: "./.data/chroma"
+  trace_dir: "./.data/traces"
+
+concurrency:
+  sub_agent_parallel: true
+
+prompts_dir: "./prompts"
