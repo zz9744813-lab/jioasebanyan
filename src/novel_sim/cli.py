@@ -158,5 +158,18 @@ def status(config: Path = typer.Option(Path("config.yaml"))):
         console.print(info)
 
 
+@app.command()
+def web(host: str = "127.0.0.1", port: int = 8765,
+        config: Path = typer.Option(Path("config.yaml"))):
+    """启动 Web UI。访问 http://127.0.0.1:8765"""
+    import uvicorn
+    settings = Settings.load(str(config))
+    if settings.provider.type == "anthropic":
+        if not (settings.provider.api_key or os.environ.get("ANTHROPIC_API_KEY")):
+            console.print("[red]缺少 ANTHROPIC_API_KEY[/red]")
+            raise typer.Exit(1)
+    uvicorn.run("novel_sim.web.app:app", host=host, port=port, reload=False)
+
+
 if __name__ == "__main__":
     app()

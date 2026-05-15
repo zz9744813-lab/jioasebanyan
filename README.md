@@ -64,3 +64,16 @@ novel-sim trace master
 ```bash
 pytest
 ```
+
+## Web UI（实时看板）
+
+```bash
+novel-sim web
+```
+
+打开 http://127.0.0.1:8765 ：
+
+- 顶部填场景路径，点 **Init** 初始化（勾 reset 清空旧会话）
+- 点 **Run Turn** 推进一回合，能实时看到每个子 Agent 的思考、tool 调用、行动、记忆
+- 中间是子 Agent 卡片，右侧是 LLM 调用日志和原始事件流
+- 跑够回合后点 **Writing Phase** 进入成稿/审核循环

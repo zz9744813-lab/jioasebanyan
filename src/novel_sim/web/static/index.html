@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>jioasebanyan · 实时看板</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<style>
+  .agent-card { transition: all .3s; }
+  .agent-card.thinking { box-shadow: 0 0 0 2px #f59e0b inset; }
+  pre.scroll { max-height: 24rem; overflow-y: auto; white-space: pre-wrap; }
+</style>
+</head>
+<body class="bg-slate-900 text-slate-100" x-data="board()">
+<header class="p-4 border-b border-slate-700 flex gap-3 items-center">
+  <h1 class="text-xl font-bold">jioasebanyan 实时看板</h1>
+  <input x-model="scenario" placeholder="scenarios/inn_rainy_night.yaml" class="bg-slate-800 px-2 py-1 rounded flex-1 max-w-md">
+  <label class="text-sm"><input type="checkbox" x-model="reset"> reset</label>
+  <button @click="init()" class="bg-emerald-600 px-3 py-1 rounded">Init</button>
+  <button @click="runTurn()" :disabled="!initialized || running" class="bg-sky-600 px-3 py-1 rounded disabled:opacity-40">Run Turn</button>
+  <button @click="writing()" :disabled="!initialized || running" class="bg-purple-600 px-3 py-1 rounded disabled:opacity-40">Writing Phase</button>
+  <span class="text-sm text-slate-400">turn: <span x-text="world?.turn ?? '-'"></span></span>
+</header>
+<main class="grid grid-cols-12 gap-4 p-4">
+<section class="col-span-3 space-y-3"><div class="bg-slate-800 rounded p-3"><h2 class="font-semibold mb-2">世界状态</h2><pre class="text-xs scroll" x-text="JSON.stringify(world, null, 2)"></pre></div><div class="bg-slate-800 rounded p-3"><h2 class="font-semibold mb-2">客观事件流</h2><ul class="space-y-1 text-sm"><template x-for="e in worldEvents" :key="e.id"><li class="border-l-2 border-emerald-500 pl-2"><span class="text-slate-400">T<span x-text="e.turn"></span></span> <span x-text="e.text"></span></li></template></ul></div></section>
+<section class="col-span-6 space-y-3"><h2 class="font-semibold">当前回合 · 子 Agent</h2><template x-for="(a, cid) in agents" :key="cid"><div class="agent-card bg-slate-800 rounded p-3" :class="a.status === 'thinking' ? 'thinking' : ''"><div class="flex items-center justify-between mb-2"><h3 class="font-bold text-lg" x-text="cid"></h3><span class="text-xs px-2 py-0.5 rounded" :class="{'bg-amber-500': a.status === 'thinking','bg-emerald-600': a.status === 'done','bg-slate-600': a.status === 'idle'}" x-text="a.status"></span></div><div class="text-sm text-slate-300 mb-2"><div class="text-slate-500">观察:</div><div x-text="a.observation"></div></div><template x-for="tc in a.toolCalls" :key="tc.id"><div class="text-xs bg-slate-900 rounded p-2 mb-1">🔧 <span x-text="tc.tool"></span>: <span x-text="tc.query"></span><div class="text-slate-400 mt-1" x-text="tc.result"></div></div></template><div x-show="a.thinking" class="bg-slate-900 rounded p-2 mb-2"><div class="text-xs text-amber-400">thinking</div><div class="text-sm" x-text="a.thinking"></div></div><div x-show="a.action" class="bg-slate-900 rounded p-2 mb-2"><div class="text-xs text-sky-400">action</div><div class="text-sm" x-text="a.action"></div></div><div x-show="a.memory_entry" class="bg-slate-900 rounded p-2"><div class="text-xs text-purple-400">memory_entry</div><div class="text-sm italic" x-text="a.memory_entry"></div></div></div></template></section>
+<section class="col-span-3 space-y-3"><div class="bg-slate-800 rounded p-3"><h2 class="font-semibold mb-2">LLM 调用</h2><ul class="space-y-1 text-xs scroll"><template x-for="c in llmCalls" :key="c.id"><li class="border-b border-slate-700 pb-1"><div class="flex justify-between"><span x-text="c.purpose"></span><span class="text-slate-400" x-text="c.duration_ms + 'ms'"></span></div><div class="text-slate-500"><span x-text="c.model"></span> · in <span x-text="c.input_tokens"></span> / out <span x-text="c.output_tokens"></span></div></li></template></ul></div><div class="bg-slate-800 rounded p-3"><h2 class="font-semibold mb-2">原始事件</h2><pre class="text-xs scroll" x-text="rawEventsText"></pre></div></section>
+</main>
+<script>
+function board(){return{scenario:'scenarios/inn_rainy_night.yaml',reset:false,initialized:false,running:false,world:null,agents:{},worldEvents:[],llmCalls:[],rawEvents:[],es:null,get rawEventsText(){return this.rawEvents.slice(-50).map(e=>`[${e.type}] ${JSON.stringify(e.payload).slice(0,200)}`).join('\n');},init(){fetch('/api/init',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenario:this.scenario,reset:this.reset})}).then(r=>r.json()).then(d=>{this.initialized=true;this.world=d.world;});if(!this.es)this._connectSSE();},runTurn(){this.agents={};this.running=true;fetch('/api/turn',{method:'POST'}).then(r=>r.json()).then(d=>{this.world=d.world;this.running=false;});},writing(){this.running=true;fetch('/api/writing',{method:'POST'}).then(r=>r.json()).then(_=>{this.running=false;});},_ensureAgent(cid){if(!this.agents[cid])this.agents[cid]={observation:'',thinking:'',action:'',memory_entry:'',status:'idle',toolCalls:[]};return this.agents[cid];},_connectSSE(){this.es=new EventSource('/api/events');const handlers={'master.observation':p=>{Object.entries(p.observations||{}).forEach(([cid,text])=>{this._ensureAgent(cid).observation=text;});},'sub_agent.started':p=>{this._ensureAgent(p.char_id).status='thinking';},'sub_agent.tool_call':p=>{this._ensureAgent(p.char_id).toolCalls.push({id:Date.now()+Math.random(),tool:p.tool,query:p.query,result:'...'});},'sub_agent.tool_result':p=>{const a=this._ensureAgent(p.char_id);const last=a.toolCalls[a.toolCalls.length-1];if(last)last.result=p.result_preview;},'sub_agent.output':p=>{const a=this._ensureAgent(p.char_id);a.thinking=p.thinking;a.action=p.action;a.memory_entry=p.memory_entry;a.status='done';},'master.adjudication':p=>{(p.events||[]).forEach(e=>this.worldEvents.push({id:Date.now()+Math.random(),turn:p.turn,text:JSON.stringify(e)}));},'llm.call':p=>{this.llmCalls.unshift({id:Date.now()+Math.random(),...p});if(this.llmCalls.length>100)this.llmCalls.pop();}};Object.keys(handlers).forEach(t=>this.es.addEventListener(t,e=>{const p=JSON.parse(e.data);this.rawEvents.push({type:t,payload:p});handlers[t](p);}));['turn.started','turn.done','writing.started','writing.done','recorder.draft','reviewer.result','error'].forEach(t=>{this.es.addEventListener(t,e=>{this.rawEvents.push({type:t,payload:JSON.parse(e.data)});});});}}}
+</script>
+</body></html>

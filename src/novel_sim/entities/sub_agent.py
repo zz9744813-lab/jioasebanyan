@@ -6,6 +6,7 @@ from ..llm.anthropic_provider import _extract_json
 from ..prompts.loader import PromptLoader
 from ..memory.retriever import Retriever
 from ..settings import Settings
+from ..events import emit
 
 
 class SubAgent:
@@ -19,6 +20,7 @@ class SubAgent:
         self.settings = settings
 
     async def run_turn(self, obs: POVObservation) -> SubAgentOutput:
+        emit("sub_agent.started", char_id=self.char_id, turn=obs.turn)
         retrieved = self.retriever.auto_retrieve(
             self.char_id, obs.text, self.settings.retrieval.auto_retrieve_n)
         system = self.prompts.render("sub_agent_system", persona=self.persona)
@@ -45,7 +47,13 @@ class SubAgent:
                 temperature=self.settings.llm.temperature,
                 purpose=f"sub.{self.char_id}.t{obs.turn}.fallback")
         data = _extract_json(response_text)
-        return SubAgentOutput.model_validate(data)
+        output = SubAgentOutput.model_validate(data)
+        emit("sub_agent.output",
+             char_id=self.char_id,
+             thinking=output.thinking,
+             action=output.action,
+             memory_entry=output.memory_entry)
+        return output
 
     @staticmethod
     def _fmt_memories(memories: list[RetrievedMemory]) -> str:
@@ -70,14 +78,27 @@ class SubAgent:
 
     async def _handle_tool(self, name: str, inp: dict) -> str:
         query = inp.get("query", "")
+        emit("sub_agent.tool_call", char_id=self.char_id, tool=name, query=query)
         if name == "recall_subjective":
             r = self.retriever.recall_subjective(self.char_id, query)
-            return self._fmt_memories(r) if r else "（无相关记忆）"
+            result = self._fmt_memories(r) if r else "（无相关记忆）"
+            emit("sub_agent.tool_result",
+                 char_id=self.char_id, tool=name, result_preview=str(result)[:200])
+            return result
         elif name == "recall_verbatim":
             r = self.retriever.recall_verbatim(self.char_id, query)
             if not r:
-                return "（档案无匹配）"
-            return "\n".join(
+                result = "（档案无匹配）"
+                emit("sub_agent.tool_result",
+                     char_id=self.char_id, tool=name, result_preview=result[:200])
+                return result
+            result = "\n".join(
                 f"[第{x['turn']}回合] 观察:{x['observation'][:100]} | 行动:{x['action'][:100]}"
                 for x in r)
-        return f"未知工具: {name}"
+            emit("sub_agent.tool_result",
+                 char_id=self.char_id, tool=name, result_preview=result[:200])
+            return result
+        result = f"未知工具: {name}"
+        emit("sub_agent.tool_result",
+             char_id=self.char_id, tool=name, result_preview=result[:200])
+        return result

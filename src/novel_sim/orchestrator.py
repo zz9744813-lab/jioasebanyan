@@ -20,6 +20,7 @@ from .entities.sub_agent import SubAgent
 from .entities.recorder import Recorder
 from .entities.reviewer import Reviewer
 from .logging_setup import get_logger
+from .events import emit
 
 logger = get_logger(__name__)
 
@@ -64,6 +65,7 @@ class Orchestrator:
 
     async def run_turn(self):
         turn = self.world.turn
+        emit("turn.started", turn=turn)
         logger.info("turn.start", turn=turn)
         char_ids = list(self.sub_agents.keys())
         if self.settings.concurrency.sub_agent_parallel:
@@ -73,6 +75,8 @@ class Orchestrator:
             observations = [await self.master.generate_pov_observation(cid)
                             for cid in char_ids]
         obs_map = {o.char_id: o for o in observations}
+        emit("master.observation", turn=turn,
+             observations={cid: obs_map[cid].text for cid in char_ids})
         if self.settings.concurrency.sub_agent_parallel:
             outputs = await asyncio.gather(*[
                 self.sub_agents[cid].run_turn(obs_map[cid]) for cid in char_ids])
@@ -89,6 +93,12 @@ class Orchestrator:
         actions_for_judge = {cid: {"thinking": out.thinking, "action": out.action}
                              for cid, out in output_map.items()}
         adj = await self.master.adjudicate(turn, actions_for_judge)
+        emit("master.adjudication",
+             turn=turn,
+             adjudications=adj.adjudications,
+             events=[e.model_dump() for e in adj.events],
+             world_state_patch=adj.world_state_patch,
+             scene_ended=adj.scene_ended)
         turn_record = TurnRecord(
             turn=turn,
             characters={cid: CharacterTurnRecord(
@@ -102,9 +112,11 @@ class Orchestrator:
             self.chronicle.add(turn, adj.chronicle_entry)
             logger.info("scene.ended", turn=turn, summary=adj.chronicle_entry)
         logger.info("turn.done", turn=turn, next=turn + 1)
+        emit("turn.done", turn=turn)
         return adj
 
     async def writing_phase(self) -> Path | None:
+        emit("writing.started")
         chronicle_entries = self.chronicle.all()
         if not chronicle_entries:
             logger.warning("writing.no_chronicle")
@@ -140,6 +152,8 @@ class Orchestrator:
         chron_md = self.settings.storage.output_dir / "chronicle.md"
         chron_md.write_text(self.chronicle.to_markdown(), encoding="utf-8")
         logger.info("writing.complete")
+        emit("writing.done", final_draft=novel_path.read_text(encoding="utf-8") if novel_path.exists() else "",
+             iterations=0, terminated_reason="completed")
         return novel_path
 
     async def _write_chapter_with_loop(self, ch: ChapterPlan, plan: NovelPlan,
@@ -151,13 +165,26 @@ class Orchestrator:
         snapshot = self.world.snapshot
         while True:
             attempt += 1
+            emit("recorder.draft", iteration=attempt, draft=draft)
             review = await self.reviewer.review(
                 draft=draft, world_rules=snapshot.world_rules,
                 materials=materials, prev_summaries=prev_summaries,
                 chapter_number=ch.number)
             if review.overall_passed:
+                emit("reviewer.result", iteration=attempt,
+                     literary=review.literary.model_dump(),
+                     factual=review.factual.model_dump(),
+                     world_rules=review.world_rules.model_dump(),
+                     coherence=review.coherence.model_dump(),
+                     overall_passed=True)
                 logger.info("chapter.passed", number=ch.number, attempts=attempt)
                 return draft
+            emit("reviewer.result", iteration=attempt,
+                 literary=review.literary.model_dump(),
+                 factual=review.factual.model_dump(),
+                 world_rules=review.world_rules.model_dump(),
+                 coherence=review.coherence.model_dump(),
+                 overall_passed=False)
             failed = review.failed_dimensions()
             logger.info("chapter.review_failed", number=ch.number,
                         attempt=attempt, dimensions=failed)
@@ -165,6 +192,8 @@ class Orchestrator:
             loop_history.append(feedback_str)
             if self._is_stuck(loop_history):
                 logger.warning("chapter.stuck", number=ch.number)
+                emit("writing.done", final_draft=draft, iterations=attempt,
+                     terminated_reason="stuck")
                 return draft
             draft = await self.recorder.revise(ch, draft, review, materials)
 
